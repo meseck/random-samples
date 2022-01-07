@@ -2,85 +2,88 @@
 # Author: Fool's Mate https://github.com/fools-mate
 
 # Arguments
-name=$1
-numberOfSamples=$2
+FOLDER_NAME=$1
+NUMBER_OF_SAMPLES=$2
 
-url="http://bbcsfx.acropolis.org.uk/assets"
-csv="BBCSoundEffects.csv"
+URL="https://sound-effects-media.bbcrewind.co.uk/wav"
+CSV="BBCSoundEffects.csv"
 
 # If no argument is supplied - use default values
 if [ "$#" -eq 0 ]; then
   echo ""
   echo "No arguments supplied. You can use following arguments: [folder name (path)], [number of samples]"
   echo "At this point the default values are set. (folder name = 'random-samples', number of samples = 4)"
-  name=random-samples
-  numberOfSamples=4
+  FOLDER_NAME=random-samples
+  NUMBER_OF_SAMPLES=4
 fi
 
 # Check for name argument
-if [ -z "$name" ]; then
-  echo "No name supplied."
+if [ -z "$FOLDER_NAME" ]; then
+  echo "No folder name supplied."
   exit 1
 fi
 
 # Check for number of samples argument
-if [ -z "$numberOfSamples" ]; then
+if [ -z "$NUMBER_OF_SAMPLES" ]; then
   echo ""
   echo "No number of samples supplied."
   exit 1
 fi
 
 # Check if the second argument is an integer
-if [[ ! "$numberOfSamples" =~ ^[0-9]+$ ]]; then
+if [[ ! "$NUMBER_OF_SAMPLES" =~ ^[0-9]+$ ]]; then
   echo ""
   echo "Number of samples must be an integer."
   exit 1
 fi
 
-# Check if the name already exists
-if [[ -d $name ]]; then
-  index=1
+# Check if the folder name already exists
+if [[ -d $FOLDER_NAME ]]; then
+  INDEX=1
   # If so add number at the end
-  while [[ -d $name-$index ]]; do
-    ((index++))
+  while [[ -d $FOLDER_NAME-$INDEX ]]; do
+    ((INDEX++))
   done
-  name=$name-$index
+  FOLDER_NAME=$FOLDER_NAME-$INDEX
 fi
 
 # Create sample folder
 echo ""
-echo "Create sample folder: $name"
-mkdir -p "$name"
+echo "Create sample folder: ${FOLDER_NAME}"
+mkdir -p "$FOLDER_NAME"
 echo ""
 
-# Download the newest BBC Sound Library CSV file and save it in a variable
-csvFile="$(curl "$url/$csv" 2>/dev/null)"
-
 # Count the entries of the csv
-sampleEntries=$(<<<"$csvFile" wc -l)
+SAMPLE_ENTRIES=$(wc -l < "$CSV")
 
 # Declare an array to save the choosen random numbers
-declare -a randomNumberList
+declare -a RANDOM_NUMBER_LIST
 
 # Choose and download random samples
-for ((index = 1; index <= numberOfSamples; index++)); do
+for ((INDEX = 1; INDEX <= NUMBER_OF_SAMPLES; INDEX++)); do
   # Create a random number between 2 and current number of entries (Start at 2 to avoid the csv header)
-  randomNumber=$((RANDOM % sampleEntries + 2))
+  RANDOM_NUMBER=$((RANDOM % SAMPLE_ENTRIES + 2))
 
   # Check if this random number has not yet been used
-  while echo "${randomNumberList[@]}" | grep -q -w $randomNumber; do
+  while echo "${RANDOM_NUMBER_LIST[@]}" | grep -q -w $RANDOM_NUMBER; do
     # If so create a new random number
-    randomNumber=$((RANDOM % sampleEntries + 2))
+    RANDOM_NUMBER=$((RANDOM % SAMPLE_ENTRIES + 2))
   done
 
   # Choose random line in the csv and get the file name of the sample
-  randomSample=$(<<<"$csvFile" sed "${randomNumber}q;d" | grep -o "[0-9]*\.wav")
+  RANDOM_SAMPLE_FILE_NAME=$(sed "${RANDOM_NUMBER}q;d" "$CSV" | grep -o "[0-9]*\.wav")
+
   # Add current random number to the list
-  randomNumberList+=("$randomNumber")
+  RANDOM_NUMBER_LIST+=("$RANDOM_NUMBER")
+
+  DOWNLOAD_URL="${URL}/${RANDOM_SAMPLE_FILE_NAME}"
+  OUTPUT_PATH="${FOLDER_NAME}/sample-${INDEX}.wav"
+
+  echo "$DOWNLOAD_URL"
 
   # Download sample
-  echo "Downloading random sample - $index of $numberOfSamples"
-  curl --progress-bar "$url/$randomSample" -o $name/sample-$index.wav
+  echo "Downloading random sample - $INDEX of $NUMBER_OF_SAMPLES"
+  curl --progress-bar "$DOWNLOAD_URL" -o "$OUTPUT_PATH"
   echo ""
 done
 
